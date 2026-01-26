@@ -1,0 +1,12 @@
+filetoggler (1.0-1) unstable; urgency=medium
+
+  * Initial release
+  * Dual-mode (GUI/CLI) file toggler
+  * wxWidgets GUI with directory tree and sortable file list
+  * Multi-selection and keyboard shortcuts
+  * Alt navigation shortcuts (back/forward/up/down)
+  * Menubar and statusbar with file info
+  * Bash completion support
+  * Automatic sudo elevation on permission errors
+
+ -- Lenik (谢继雷) <lenik@bodz.net>  Mon, 27 Jan 2026 02:15:00 +0800

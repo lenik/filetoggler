@@ -1,0 +1,29 @@
+Source: filetoggler
+Section: utils
+Priority: optional
+Maintainer: Lenik <filetoggler@bodz.net>
+Build-Depends: debhelper-compat (= 13),
+               meson,
+               ninja-build,
+               libwxgtk3.0-gtk3-dev | libwxgtk3.2-dev,
+               pkg-config
+Standards-Version: 4.6.0
+Homepage: https://github.com/lenik/filetoggler
+Vcs-Git: https://github.com/lenik/filetoggler.git
+Vcs-Browser: https://github.com/lenik/filetoggler
+
+Package: filetoggler
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: policykit-1 | kde-cli-tools
+Description: dual-mode file toggler for quickly enabling/disabling files
+ filetoggler is a dual-mode (GUI/CLI) application for quickly enabling
+ and disabling files by moving them to a disabled directory.
+ .
+ Features:
+  * Dual mode: GUI (wxWidgets) when no file arguments, CLI otherwise
+  * Auto-detect TTY: Forces GUI mode when not running in a terminal
+  * Flexible disabled file storage with custom directory, prefix, suffix
+  * Bash completion for options, filenames, and disabled file names
+  * GUI with directory tree, sortable file list, multi-selection
+  * Keyboard shortcuts and automatic sudo elevation on permission errors

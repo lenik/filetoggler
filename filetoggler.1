@@ -1,0 +1,134 @@
+.TH FILETOGGLER 1 "2026" "filetoggler 1.0" "User Commands"
+.SH NAME
+filetoggler \- dual-mode file toggler for quickly enabling/disabling files
+.SH SYNOPSIS
+.B filetoggler
+[\fIOPTIONS\fR] [\fIFILE\fR...]
+.SH DESCRIPTION
+.B filetoggler
+is a dual-mode (GUI/CLI) application for quickly enabling and disabling files by moving them to a disabled directory. When run without file arguments or without a TTY, it launches a GUI. Otherwise, it operates in CLI mode.
+.PP
+Disabled files are moved to a disabled directory (default: \fI.disabled.d\fR) with optional prefix and suffix decoration. The GUI provides a directory tree, sortable file list, multi-selection, keyboard shortcuts, and automatic sudo elevation on permission errors.
+.SH OPTIONS
+.TP
+.BR \-C ", " \-\-chdir " \fIDIR\fR"
+Change working directory before operation
+.TP
+.BR \-D ", " \-\-disabled\-dir " \fIDIR\fR"
+Disabled directory (default: .disabled.d)
+.TP
+.BR \-p ", " \-\-disabled\-prefix " \fIPREFIX\fR"
+Prefix for disabled filenames
+.TP
+.BR \-s ", " \-\-disabled\-suffix " \fISUFFIX\fR"
+Suffix for disabled filenames
+.TP
+.BR \-e ", " \-\-enable
+Enable specified files (move from disabled dir to working dir)
+.TP
+.BR \-d ", " \-\-disable
+Disable specified files (move to disabled dir)
+.TP
+.BR \-t ", " \-\-toggle
+Toggle files (default action if no \-e/\-d specified)
+.TP
+.BR \-n ", " \-\-dry\-run
+Show what would be done without making changes
+.TP
+.BR \-v ", " \-\-verbose
+Verbose output
+.TP
+.BR \-q ", " \-\-quiet
+Suppress output
+.TP
+.BR \-h ", " \-\-help
+Show help message
+.TP
+.BR \-\-version
+Show version information
+.SH GUI KEYBOARD SHORTCUTS
+.SS File Operations
+.TP
+.B Enter
+Enable selected files, select next
+.TP
+.B Shift+Enter
+Enable selected files, select previous
+.TP
+.B Delete
+Disable selected files, select next
+.TP
+.B Shift+Delete
+Disable selected files, select previous
+.TP
+.B Space
+Toggle selected files, select next
+.TP
+.B Shift+Space
+Toggle selected files, select previous
+.SS Navigation
+.TP
+.B Alt+Left
+Go back in directory history
+.TP
+.B Alt+Right
+Go forward in directory history
+.TP
+.B Alt+Up
+Go to parent directory
+.TP
+.B Alt+Down
+Open selected directory
+.SS Search and Selection
+.TP
+.B Alphanumeric keys
+Type-to-find (prefix search)
+.TP
+.B Ctrl+Click
+Multi-select
+.TP
+.B Shift+Click
+Range select
+.SH EXAMPLES
+.TP
+.B filetoggler
+Launch GUI mode
+.TP
+.B filetoggler file1.txt file2.txt
+Toggle files (default action)
+.TP
+.B filetoggler \-d demo.txt
+Disable demo.txt (moves to .disabled.d/demo.txt)
+.TP
+.B filetoggler \-e demo.txt
+Enable demo.txt (restores from .disabled.d/)
+.TP
+.B filetoggler \-C /path/to/dir \-d file.txt
+Change to directory and disable file
+.TP
+.B filetoggler \-D .backup \-p "~" \-s ".bak" \-d file.txt
+Disable file.txt to .backup/~file.txt.bak
+.TP
+.B filetoggler \-n \-d *.txt
+Dry run: show what would be disabled
+.SH FILES
+.TP
+.I .disabled.d/
+Default disabled directory (configurable with \-D)
+.SH BASH COMPLETION
+Bash completion is automatically installed to:
+.PP
+.I /usr/share/bash-completion/completions/filetoggler
+.PP
+Completion supports options, filenames, and original names of disabled files. It also provides directory completion for \-C and \-D options.
+.SH AUTHOR
+Written by Lenik <filetoggler@bodz.net>
+.SH COPYRIGHT
+Copyright \(co 2026 Lenik
+.br
+License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>
+.br
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+.SH SEE ALSO
+Full documentation and source code: <https://github.com/lenik/filetoggler>

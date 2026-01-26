@@ -1,0 +1,17 @@
+builddir/
+build/
+*.o
+*.a
+*.so
+*.so.*
+*.exe
+*~
+.*.swp
+.*.swo
+.DS_Store
+*.pyc
+__pycache__/
+.vscode/
+.idea/
+*.log
+.disabled.d/
