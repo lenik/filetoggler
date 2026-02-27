@@ -55,7 +55,7 @@ static void testDisableEnableRoundtrip() {
     fs::path dir = makeTempDir();
 
     ft::Config cfg;
-    cfg.disabled_dir = ".disabled.d";
+    cfg.disabled_dir = ".disable.d";
 
     fs::path enabled = dir / "a.txt";
     writeFile(enabled, "hello");
@@ -80,7 +80,7 @@ static void testDisableWithPrefixSuffix() {
     fs::path dir = makeTempDir();
 
     ft::Config cfg;
-    cfg.disabled_dir = ".disabled.d";
+    cfg.disabled_dir = ".disable.d";
     cfg.disabled_prefix = "__";
     cfg.disabled_suffix = "~";
 
@@ -102,7 +102,7 @@ static void testListDirShowsOriginalNames() {
     fs::path dir = makeTempDir();
 
     ft::Config cfg;
-    cfg.disabled_dir = ".disabled.d";
+    cfg.disabled_dir = ".disable.d";
     cfg.disabled_prefix = "__";
     cfg.disabled_suffix = "~";
 

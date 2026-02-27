@@ -9,7 +9,7 @@ A dual-mode (GUI/CLI) file toggler for quickly enabling/disabling files by movin
 - **Dual mode**: GUI (wxWidgets) when no file arguments, CLI otherwise
 - **Auto-detect TTY**: Forces GUI mode when not running in a terminal
 - **Flexible disabled file storage**:
-  - Custom disabled directory (default: `.disabled.d`)
+  - Custom disabled directory (default: `.disable.d`)
   - Optional prefix/suffix for disabled filenames
 - **Bash completion**: Completes options, filenames, and original names of disabled files
 - **GUI features**:
@@ -91,6 +91,17 @@ ft -C /path/to/dir
 - **Alt+Up**: Go to parent directory
 - **Alt+Down**: Open selected directory
 
+**View:**
+- **F5**: Reload file list
+- **Ctrl+H**: Show/hide hidden files
+- **Ctrl+K**: Show/hide backup files
+- **Ctrl++** / **Ctrl+-** / **Ctrl+0**: Zoom in / out / normal (icon view)
+- **Ctrl+1** / **Ctrl+2** / **Ctrl+3**: Icons / List / Compact view
+
+**Rename:**
+- **F2**: Rename selected item
+- **Single click + 1 second**: Start rename (without double-clicking)
+
 **Search:**
 - **Alphanumeric**: Type-to-find (prefix search)
 
@@ -100,19 +111,20 @@ ft -C /path/to/dir
 
 #### GUI features
 
-- **Menubar**: File (Select Folder, Exit), Edit (Enable, Disable, Toggle), Help (Keyboard Shortcuts, About)
+- **Menubar**: File (Select Folder, Exit), Edit (Enable, Disable, Toggle), View (Stop, Reload, Reset view, Show hidden/backup, Arrange Items, Zoom, Icons/List/Compact), Help (Keyboard Shortcuts, About)
 - **Statusbar**: Shows selected file info (name, size, count, state)
-- **Column sorting**: Click column headers to sort (Name, Last Modified, Size, Type) with visual indicators (▲/▼)
-- **File icons**: Unicode folder 📁 and file 📄 icons
+- **Column sorting**: Click column headers to sort (Name, Size, Type, Last Modified); View → Arrange Items for Name, Size, Size on disk, Type, Modification Date, Emblems, Extension, Compact Layout, Reversed Order
+- **File icons**: Theme folder/file icons in Icon and Compact views; Unicode 📁/📄 in List view
 - **Disabled files**: Shown with gray background (selection remains visible)
 - **Formatted sizes**: Human-readable units (B, KB, MB, GB, TB) with thousands separators
-- **View modes**: List (detailed columns) and Icon views
+- **View modes**: Icons (medium icon view), List (detailed columns), Compact (small icons with names)
+- **Rename**: F2 or single-click then wait ~1 s to rename the selected file or folder
 
 ### Options
 
 ```
 -C/--chdir DIR               Change working directory
--D/--disabled-dir DIR        Disabled directory (default: .disabled.d)
+-D/--disabled-dir DIR        Disabled directory (default: .disable.d)
 -p/--disabled-prefix PREFIX  Prefix for disabled filenames
 -s/--disabled-suffix SUFFIX  Suffix for disabled filenames
 -e/--enable                  Enable specified files
@@ -145,9 +157,9 @@ demo.txt  other.txt
 $ ft -d demo.txt
 
 $ ls
-.disabled.d/  other.txt
+.disable.d/  other.txt
 
-$ ls .disabled.d/
+$ ls .disable.d/
 demo.txt
 ```
 
@@ -165,7 +177,7 @@ demo.txt  other.txt
 ```bash
 $ ft -p "__" -s "~" -d demo.txt
 
-$ ls .disabled.d/
+$ ls .disable.d/
 __demo.txt~
 
 $ ft -p "__" -s "~" -e demo.txt

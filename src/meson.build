@@ -1,4 +1,5 @@
 wx_dep = dependency('wxwidgets', modules : ['base', 'core'], required : true)
+glib_dep = dependency('glib-2.0', required : true)
 
 executable('filetoggler',
     [
@@ -6,8 +7,16 @@ executable('filetoggler',
         'core.cpp',
         'cli.cpp',
         'gui.cpp',
+        'proc/dbgthread.c',
+        'proc/stackdump.c',
+        'proc/stackdump.c',
+        'proc/format_backtrace.c',
+        'proc/format_gdb.c',
+        'util/args.c',
+        'util/logger.c',
+        'util/string_list.c',
     ],
-    dependencies : [wx_dep],
+    dependencies : [wx_dep, glib_dep],
     install : true)
 
 # Create ft symlink to filetoggler

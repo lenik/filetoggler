@@ -8,14 +8,14 @@ filetoggler \- dual-mode file toggler for quickly enabling/disabling files
 .B filetoggler
 is a dual-mode (GUI/CLI) application for quickly enabling and disabling files by moving them to a disabled directory. When run without file arguments or without a TTY, it launches a GUI. Otherwise, it operates in CLI mode.
 .PP
-Disabled files are moved to a disabled directory (default: \fI.disabled.d\fR) with optional prefix and suffix decoration. The GUI provides a directory tree, sortable file list, multi-selection, keyboard shortcuts, and automatic sudo elevation on permission errors.
+Disabled files are moved to a disabled directory (default: \fI.disable.d\fR) with optional prefix and suffix decoration. The GUI provides a directory tree, sortable file list, multi-selection, keyboard shortcuts, and automatic sudo elevation on permission errors.
 .SH OPTIONS
 .TP
 .BR \-C ", " \-\-chdir " \fIDIR\fR"
 Change working directory before operation
 .TP
 .BR \-D ", " \-\-disabled\-dir " \fIDIR\fR"
-Disabled directory (default: .disabled.d)
+Disabled directory (default: .disable.d)
 .TP
 .BR \-p ", " \-\-disabled\-prefix " \fIPREFIX\fR"
 Prefix for disabled filenames
@@ -98,10 +98,10 @@ Launch GUI mode
 Toggle files (default action)
 .TP
 .B filetoggler \-d demo.txt
-Disable demo.txt (moves to .disabled.d/demo.txt)
+Disable demo.txt (moves to .disable.d/demo.txt)
 .TP
 .B filetoggler \-e demo.txt
-Enable demo.txt (restores from .disabled.d/)
+Enable demo.txt (restores from .disable.d/)
 .TP
 .B filetoggler \-C /path/to/dir \-d file.txt
 Change to directory and disable file
@@ -113,7 +113,7 @@ Disable file.txt to .backup/~file.txt.bak
 Dry run: show what would be disabled
 .SH FILES
 .TP
-.I .disabled.d/
+.I .disable.d/
 Default disabled directory (configurable with \-D)
 .SH BASH COMPLETION
 Bash completion is automatically installed to:

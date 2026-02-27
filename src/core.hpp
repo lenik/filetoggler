@@ -16,7 +16,7 @@ enum class Verbosity {
 
 struct Config {
     std::filesystem::path chdir;
-    std::filesystem::path disabled_dir{ ".disabled.d" };
+    std::filesystem::path disabled_dir{ ".disable.d" };
     std::string disabled_prefix;
     std::string disabled_suffix;
     bool dry_run{false};
@@ -53,6 +53,7 @@ void move_path(const std::filesystem::path& from, const std::filesystem::path& t
 bool enable_one(const std::filesystem::path& enabled_path, const Config& cfg, std::string* err);
 bool disable_one(const std::filesystem::path& enabled_path, const Config& cfg, std::string* err);
 bool toggle_one(const std::filesystem::path& enabled_path, const Config& cfg, std::string* err);
+bool rename_one(const std::filesystem::path& enabled_path, std::string_view new_display_name, const Config& cfg, std::string* err);
 
 std::vector<FileEntry> list_dir_entries_with_disabled(const std::filesystem::path& dir, const Config& cfg);
 

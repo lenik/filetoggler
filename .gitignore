@@ -11,7 +11,9 @@ build/
 .DS_Store
 *.pyc
 __pycache__/
+.cache/
 .vscode/
 .idea/
 *.log
+.disable.d/
 .disabled.d/
