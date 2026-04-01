@@ -176,6 +176,83 @@ bool toggle_one(const fs::path& enabled_path, const Config& cfg, std::string* er
     return false;
 }
 
+bool rename_one(const fs::path& enabled_path, std::string_view new_display_name, const Config& cfg, std::string* err) {
+    if (new_display_name.empty() || new_display_name.find('/') != std::string_view::npos) {
+        if (err) {
+            *err = "invalid new name";
+        }
+        return false;
+    }
+    fs::path base = enabled_path.parent_path();
+    fs::path new_enabled = base / std::string(new_display_name);
+    if (new_enabled == enabled_path) {
+        return true;
+    }
+    std::error_code ec;
+    switch (get_state(enabled_path, cfg)) {
+        case FileState::Enabled: {
+            if (fs::exists(new_enabled, ec)) {
+                if (err) {
+                    *err = "target already exists: " + new_enabled.string();
+                }
+                return false;
+            }
+            fs::rename(enabled_path, new_enabled, ec);
+            if (ec && ec == std::errc::cross_device_link) {
+                if (fs::is_directory(enabled_path, ec)) {
+                    fs::copy(enabled_path, new_enabled, fs::copy_options::recursive, ec);
+                } else {
+                    fs::copy_file(enabled_path, new_enabled, fs::copy_options::overwrite_existing, ec);
+                }
+                if (!ec) {
+                    fs::remove_all(enabled_path, ec);
+                }
+            }
+            if (ec) {
+                if (err) {
+                    *err = ec.message();
+                }
+                return false;
+            }
+            return true;
+        }
+        case FileState::Disabled: {
+            fs::path old_disabled = disabled_path_for(enabled_path, cfg);
+            fs::path new_disabled = base / cfg.disabled_dir / decorate_disabled_name(std::string(new_display_name), cfg);
+            if (fs::exists(new_disabled, ec)) {
+                if (err) {
+                    *err = "target already exists: " + new_disabled.string();
+                }
+                return false;
+            }
+            fs::rename(old_disabled, new_disabled, ec);
+            if (ec && ec == std::errc::cross_device_link) {
+                if (fs::is_directory(old_disabled, ec)) {
+                    fs::copy(old_disabled, new_disabled, fs::copy_options::recursive, ec);
+                } else {
+                    fs::copy_file(old_disabled, new_disabled, fs::copy_options::overwrite_existing, ec);
+                }
+                if (!ec) {
+                    fs::remove_all(old_disabled, ec);
+                }
+            }
+            if (ec) {
+                if (err) {
+                    *err = ec.message();
+                }
+                return false;
+            }
+            return true;
+        }
+        case FileState::Missing:
+            break;
+    }
+    if (err) {
+        *err = "file not found (enabled or disabled): " + enabled_path.string();
+    }
+    return false;
+}
+
 static std::optional<FileEntry> build_enabled_entry(const fs::path& p, const Config& cfg) {
     std::error_code ec;
     fs::file_status st = fs::status(p, ec);

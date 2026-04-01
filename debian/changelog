@@ -1,4 +1,4 @@
-filetoggler (1.0-1) unstable; urgency=medium
+filetoggler (1.0.0) testing; urgency=medium
 
   * Initial release
   * Dual-mode (GUI/CLI) file toggler
