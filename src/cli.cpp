@@ -1,6 +1,7 @@
 #include "cli.hpp"
 
 #include "core.hpp"
+#include "config.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -8,9 +9,9 @@
 #include <optional>
 #include <set>
 #include <string>
-#include <string_view>
 #include <vector>
 
+#include <getopt.h>
 #include <unistd.h>
 
 namespace fs = std::filesystem;
@@ -22,6 +23,7 @@ static void print_help() {
     << "filetoggler [OPTIONS] [FILES...]\n\n"
     << "options:\n"
     << "    -C/--chdir DIR               Change workdir to the specified dir.\n"
+    << "    -o/--open DIR                Open DIR instead of current directory.\n"
     << "    -D/--disabled-dir DIR        Disabled file will goes to this directory.\n"
     << "    -p/--disabled-prefix PREFIX  Disabled file will add this prefix before filename\n"
     << "    -s/--disabled-suffix SUFFIX  Disabled file will add this suffix after filename\n"
@@ -36,11 +38,7 @@ static void print_help() {
 }
 
 static void print_version() {
-    std::cout << "filetoggler 0.1.0\n";
-}
-
-static bool is_option(std::string_view s) {
-    return !s.empty() && s[0] == '-';
+    std::cout << "filetoggler " << FILETOGGLER_VERSION << "\n";
 }
 
 bool parse_args(int argc, char** argv, ParsedArgs* out, std::string* err) {
@@ -53,18 +51,9 @@ bool parse_args(int argc, char** argv, ParsedArgs* out, std::string* err) {
 
     ParsedArgs a;
 
+    // First pass: handle -C/--chdir to set working directory before parsing other paths
     for (int i = 1; i < argc; i++) {
-        std::string_view arg = argv[i];
-
-        if (arg == "-h" || arg == "--help") {
-            a.show_help = true;
-            continue;
-        }
-        if (arg == "--version") {
-            a.show_version = true;
-            continue;
-        }
-
+        std::string arg = argv[i];
         if (arg == "-C" || arg == "--chdir") {
             if (i + 1 >= argc) {
                 if (err) {
@@ -73,93 +62,7 @@ bool parse_args(int argc, char** argv, ParsedArgs* out, std::string* err) {
                 return false;
             }
             a.cfg.chdir = argv[++i];
-            continue;
         }
-
-        if (arg == "-D" || arg == "--disabled-dir") {
-            if (i + 1 >= argc) {
-                if (err) {
-                    *err = "missing value for --disabled-dir";
-                }
-                return false;
-            }
-            a.cfg.disabled_dir = argv[++i];
-            continue;
-        }
-
-        if (arg == "-p" || arg == "--disabled-prefix") {
-            if (i + 1 >= argc) {
-                if (err) {
-                    *err = "missing value for --disabled-prefix";
-                }
-                return false;
-            }
-            a.cfg.disabled_prefix = argv[++i];
-            continue;
-        }
-
-        if (arg == "-s" || arg == "--disabled-suffix") {
-            if (i + 1 >= argc) {
-                if (err) {
-                    *err = "missing value for --disabled-suffix";
-                }
-                return false;
-            }
-            a.cfg.disabled_suffix = argv[++i];
-            continue;
-        }
-
-        if (arg == "-e" || arg == "--enable") {
-            a.action = Action::Enable;
-            continue;
-        }
-        if (arg == "-d" || arg == "--disable") {
-            a.action = Action::Disable;
-            continue;
-        }
-        if (arg == "-t" || arg == "--toggle") {
-            a.action = Action::Toggle;
-            continue;
-        }
-
-        if (arg == "-n" || arg == "--dry-run") {
-            a.cfg.dry_run = true;
-            continue;
-        }
-
-        if (arg == "-v" || arg == "--verbose") {
-            a.cfg.verbosity = Verbosity::Verbose;
-            continue;
-        }
-
-        if (arg == "-q" || arg == "--quiet") {
-            a.cfg.verbosity = Verbosity::Quiet;
-            continue;
-        }
-
-        if (arg == "--complete-bash") {
-            a.mode = RunMode::Completion;
-            if (i + 1 >= argc) {
-                if (err) {
-                    *err = "missing cword for --complete-bash";
-                }
-                return false;
-            }
-            a.completion_cword = std::atoi(argv[++i]);
-            for (int j = i + 1; j < argc; j++) {
-                a.completion_words.push_back(argv[j]);
-            }
-            break;
-        }
-
-        if (is_option(arg)) {
-            if (err) {
-                *err = std::string("unknown option: ") + std::string(arg);
-            }
-            return false;
-        }
-
-        a.files.emplace_back(arg);
     }
 
     if (!a.cfg.chdir.empty()) {
@@ -171,6 +74,120 @@ bool parse_args(int argc, char** argv, ParsedArgs* out, std::string* err) {
             }
             return false;
         }
+    }
+
+    // Define long options for getopt_long
+    static struct option long_options[] = {
+        {"chdir",            required_argument, nullptr, 'C'},
+        {"open",             required_argument, nullptr, 'o'},
+        {"disabled-dir",     required_argument, nullptr, 'D'},
+        {"disabled-prefix",  required_argument, nullptr, 'p'},
+        {"disabled-suffix",  required_argument, nullptr, 's'},
+        {"enable",           no_argument,       nullptr, 'e'},
+        {"disable",          no_argument,       nullptr, 'd'},
+        {"toggle",           no_argument,       nullptr, 't'},
+        {"dry-run",          no_argument,       nullptr, 'n'},
+        {"verbose",          no_argument,       nullptr, 'v'},
+        {"quiet",            no_argument,       nullptr, 'q'},
+        {"help",             no_argument,       nullptr, 'h'},
+        {"version",          no_argument,       nullptr, 'V'},
+        {"complete-bash",    required_argument, nullptr, 'c'},
+        {nullptr, 0, nullptr, 0}
+    };
+
+    // Reset getopt state
+    optind = 1;
+    opterr = 0;  // Disable automatic error printing
+
+    int c;
+    while ((c = getopt_long(argc, argv, "C:o:D:p:s:edtnvqhVc:", long_options, nullptr)) != -1) {
+        switch (c) {
+            case 'C':
+                // Already handled in first pass, skip argument
+                if (optarg && optind < argc && argv[optind] && argv[optind][0] != '-') {
+                    optind++;
+                }
+                break;
+
+            case 'o':
+                a.open_dir = optarg;
+                break;
+
+            case 'D':
+                a.cfg.disabled_dir = optarg;
+                break;
+
+            case 'p':
+                a.cfg.disabled_prefix = optarg;
+                break;
+
+            case 's':
+                a.cfg.disabled_suffix = optarg;
+                break;
+
+            case 'e':
+                a.action = Action::Enable;
+                break;
+
+            case 'd':
+                a.action = Action::Disable;
+                break;
+
+            case 't':
+                a.action = Action::Toggle;
+                break;
+
+            case 'n':
+                a.cfg.dry_run = true;
+                break;
+
+            case 'v':
+                a.cfg.verbosity = Verbosity::Verbose;
+                break;
+
+            case 'q':
+                a.cfg.verbosity = Verbosity::Quiet;
+                break;
+
+            case 'h':
+                a.show_help = true;
+                break;
+
+            case 'V':
+                a.show_version = true;
+                break;
+
+            case 'c':
+                a.mode = RunMode::Completion;
+                a.completion_cword = std::atoi(optarg);
+                for (int i = optind; i < argc; i++) {
+                    a.completion_words.push_back(argv[i]);
+                }
+                break;
+
+            case '?':
+                if (err) {
+                    *err = std::string("unknown option: ") + argv[optind - 1];
+                }
+                return false;
+
+            case ':':
+                if (err) {
+                    *err = std::string("option requires an argument: ") + argv[optind - 1];
+                }
+                return false;
+
+            default:
+                if (err) {
+                    *err = std::string("unexpected option: ") + argv[optind - 1];
+                }
+                return false;
+        }
+    }
+
+    // Collect remaining non-option arguments as files
+    for (int i = optind; i < argc; i++) {
+        a.files.emplace_back(argv[i]);
     }
 
     if (a.mode != RunMode::Completion) {
@@ -261,6 +278,7 @@ static std::vector<std::string> complete_options(std::string_view prefix) {
         "-q", "--quiet",
         "-h", "--help",
         "--version",
+        "-o", "--open",
     };
 
     std::vector<std::string> out;
@@ -355,6 +373,14 @@ static void parse_completion_config(const ParsedArgs& args, Config* cfg, fs::pat
             }
             continue;
         }
+
+        if (w == "-o" || w == "--open") {
+            const std::string* v = next();
+            if (v) {
+                i++;
+            }
+            continue;
+        }
     }
 }
 
@@ -412,7 +438,7 @@ int run_completion(const ParsedArgs& args) {
     fs::current_path(completion_base_dir, ec);
 
     std::vector<std::string> results;
-    if (prev == "-C" || prev == "--chdir" || prev == "-D" || prev == "--disabled-dir") {
+    if (prev == "-C" || prev == "--chdir" || prev == "-D" || prev == "--disabled-dir" || prev == "-o" || prev == "--open") {
         results = complete_dirs(current);
     } else if (!current.empty() && current[0] == '-') {
         results = complete_options(current);

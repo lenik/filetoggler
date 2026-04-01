@@ -2,6 +2,7 @@
 
 #include "cli.hpp"
 #include "core.hpp"
+#include "config.h"
 
 #include <wx/artprov.h>
 #include <wx/dirctrl.h>
@@ -153,6 +154,10 @@ class FileListCtrl : public wxListCtrl {
 
     ~FileListCtrl() override {
         // Stop timers to avoid callbacks after destruction.
+        StopTimers();
+    }
+    
+    void StopTimers() {
         m_typeTimer.Stop();
         m_renameTimer.Stop();
     }
@@ -256,7 +261,7 @@ class FileListCtrl : public wxListCtrl {
     }
 
     void setDir(const fs::path& dir) {
-        printf("setDir: %s <- %s\n", m_dir.string().c_str(), dir.string().c_str());
+        // logdebug_fmt("setDir: %s <- %s", m_dir.string().c_str(), dir.string().c_str());
         m_dir = dir;
         refreshEntries();
         updateStatusBar();
@@ -265,6 +270,22 @@ class FileListCtrl : public wxListCtrl {
     fs::path getDir() const { return m_dir; }
 
     void refreshEntries() {
+        // 1. Save scroll position and focus
+        int topItem = GetTopItem();
+        int rowHeight = 0;
+        if (topItem >= 0 && topItem < GetItemCount()) {
+            wxRect rect;
+            if (GetItemRect(topItem, rect)) {
+                rowHeight = rect.GetHeight();
+            }
+        }
+        
+        // Save focused item
+        long focusedItem = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_FOCUSED);
+        
+        // Save selected items
+        auto selectedNames = getSelectedNames();
+        
         m_entries = list_dir_entries_with_disabled(m_dir, m_cfg);
         if (!m_showHidden) {
             m_entries.erase(std::remove_if(m_entries.begin(), m_entries.end(),
@@ -330,6 +351,25 @@ class FileListCtrl : public wxListCtrl {
             }
         }
         
+        // 2. Restore selection
+        for (const auto& name : selectedNames) {
+            selectByName(name, false);
+        }
+        
+        // 3. Restore focus
+        if (focusedItem >= 0 && focusedItem < GetItemCount()) {
+            SetItemState(focusedItem, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
+        }
+        
+        // 4. Restore scroll position
+        // ScrollList is relative, so ensure we are at the top first
+        if (GetItemCount() > 0) {
+            EnsureVisible(0);
+            if (topItem >= 0 && rowHeight > 0) {
+                ScrollList(0, topItem * rowHeight);
+            }
+        }
+        
         updateStatusBar();
     }
 
@@ -358,13 +398,23 @@ class FileListCtrl : public wxListCtrl {
         return result;
     }
     
-    void selectByName(const std::string& name) {
+    std::vector<std::string> getSelectedNames() {
+        std::vector<std::string> result;
+        auto indices = GetSelectedIndices();
+        for (long idx : indices) {
+            if (idx >= 0 && static_cast<size_t>(idx) < m_entries.size()) {
+                result.push_back(m_entries[idx].display_name);
+            }
+        }
+        return result;
+    }
+    
+    void selectByName(const std::string& name, bool ensureVisible = true) {
         for (long i = 0; i < GetItemCount(); i++) {
             if (i >= 0 && static_cast<size_t>(i) < m_entries.size()) {
                 const auto& e = m_entries[i];
                 if (e.display_name == name) {
-                    selectSingle(i);
-                    EnsureVisible(i);
+                    selectSingle(i, ensureVisible);
                     break;
                 }
             }
@@ -443,7 +493,9 @@ class FileListCtrl : public wxListCtrl {
     }
 
     void OnTypeTimer(wxTimerEvent&) {
-        m_typeBuffer.clear();
+        if (!IsBeingDeleted()) {
+            m_typeBuffer.clear();
+        }
     }
 
     void OnColumnClick(wxListEvent& evt) {
@@ -461,11 +513,13 @@ class FileListCtrl : public wxListCtrl {
 
     void OnItemFocused(wxListEvent& evt) {
         m_renameItemIndex = evt.GetIndex();
-        m_renameTimer.StartOnce(1000);
+        if (m_renameItemIndex >= 0) {
+            m_renameTimer.StartOnce(1000);
+        }
     }
 
     void OnRenameTimer(wxTimerEvent&) {
-        if (m_renameItemIndex >= 0 && static_cast<size_t>(m_renameItemIndex) < m_entries.size()) {
+        if (!IsBeingDeleted() && m_renameItemIndex >= 0 && static_cast<size_t>(m_renameItemIndex) < m_entries.size()) {
             EditLabel(static_cast<long>(m_renameItemIndex));
         }
         m_renameItemIndex = -1;
@@ -542,8 +596,7 @@ class FileListCtrl : public wxListCtrl {
             if (i >= 0 && static_cast<size_t>(i) < m_entries.size()) {
                 const auto& e = m_entries[i];
                 if (e.display_name.rfind(prefix, 0) == 0) {
-                    selectSingle(i);
-                    EnsureVisible(i);
+                    selectSingle(i, true);
                     break;
                 }
             }
@@ -563,16 +616,80 @@ class FileListCtrl : public wxListCtrl {
         return sel;
     }
 
-    void selectSingle(long idx) {
+    void updateSingleItem(long idx, const FileEntry& e) {
+        if (idx < 0 || idx >= GetItemCount()) {
+            return;
+        }
+        
+        long style = GetWindowStyleFlag();
+        bool isIconMode = (style & wxLC_ICON) != 0;
+        bool isListMode = (style & wxLC_LIST) != 0;
+        
+        if (isIconMode || isListMode) {
+            // Just update the text
+            wxString label = wxString::FromUTF8(e.display_name.c_str());
+            SetItemText(idx, label);
+            SetItemImage(idx, e.is_dir ? 0 : 1);
+        } else {
+            // Report mode: update all columns
+            const char* stateIcon = (e.state == FileState::Disabled) ? "\xe2\x9c\x97 " : "\xe2\x9c\x93 ";
+            const char* typeIcon = e.is_dir ? "\xf0\x9f\x93\x81 " : "\xf0\x9f\x93\x84 ";
+            wxString label = wxString::FromUTF8(stateIcon) + wxString::FromUTF8(typeIcon) + wxString::FromUTF8(e.display_name.c_str());
+            SetItemText(idx, label);
+            
+            // Column 1: Size
+            if (e.is_dir) {
+                SetItem(idx, 1, "");
+            } else {
+                SetItem(idx, 1, format_size(e.size));
+            }
+            SetItem(idx, 2, e.is_dir ? "Directory" : "File");
+            wxString mtime_str;
+            {
+                auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                    e.mtime - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+                std::time_t tt = std::chrono::system_clock::to_time_t(sctp);
+                mtime_str = wxString::FromUTF8(std::string(std::ctime(&tt)).c_str());
+                mtime_str.Trim(true);
+                mtime_str.Trim(false);
+            }
+            SetItem(idx, 3, mtime_str);
+        }
+        
+        // Update text color based on state
+        SetItemTextColour(idx, e.state == FileState::Disabled ? wxColour(160, 160, 160) : wxColour(0, 0, 0));
+    }
+
+    void selectSingle(long idx, bool ensureVisible = true) {
+        // First, clear selection from all items
         for (long i = 0; i < GetItemCount(); i++) {
             SetItemState(i, 0, wxLIST_STATE_SELECTED);
-            SetItemState(i, 0, wxLIST_STATE_FOCUSED);
         }
+        
         if (idx >= 0 && idx < GetItemCount()) {
+            // Set selection
             SetItemState(idx, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
-            SetItemState(idx, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
-            SetFocus();
-            EnsureVisible(idx);
+            
+            // Set focus and scroll when needed
+            if (ensureVisible) {
+                // Clear focus from all items first
+                for (long i = 0; i < GetItemCount(); i++) {
+                    SetItemState(i, 0, wxLIST_STATE_FOCUSED);
+                }
+                SetItemState(idx, wxLIST_STATE_FOCUSED, wxLIST_STATE_FOCUSED);
+                SetFocus();
+                EnsureVisible(idx);
+            } else {
+                // Even if ensureVisible is false, scroll if the item is out of view
+                wxRect itemRect = GetViewRect();
+                wxRect rect;
+                if (GetItemRect(idx, rect)) {
+                    // If item is not visible, scroll to make it visible
+                    if (rect.GetBottom() < itemRect.GetTop() || rect.GetTop() > itemRect.GetBottom()) {
+                        EnsureVisible(idx);
+                    }
+                }
+            }
         }
     }
 
@@ -587,6 +704,9 @@ class FileListCtrl : public wxListCtrl {
 
         std::string err;
         bool perm_error = false;
+        std::vector<long> updatedIndices;
+
+        Freeze();
 
         for (long idx : sel) {
             if (idx < 0 || static_cast<size_t>(idx) >= m_entries.size()) {
@@ -618,10 +738,28 @@ class FileListCtrl : public wxListCtrl {
                 ok = false;
             }
 
+            if (ok) {
+                // Update the entry state in our local data
+                if (static_cast<size_t>(idx) < m_entries.size()) {
+                    FileEntry& entry = m_entries[idx];
+                    
+                    // Re-check the file state after the operation
+                    std::error_code ec;
+                    bool exists = fs::exists(entry.enabled_path, ec);
+                    entry.state = exists ? FileState::Enabled : FileState::Disabled;
+                    
+                    // Update the view for this item only
+                    updateSingleItem(idx, entry);
+                    updatedIndices.push_back(idx);
+                }
+            }
+
             if (!ok) {
                 break;
             }
         }
+
+        Thaw();
 
         if (perm_error) {
             if (relaunch_elevated(m_cfg)) {
@@ -630,8 +768,7 @@ class FileListCtrl : public wxListCtrl {
             }
         }
 
-        refreshEntries();
-
+        // Find the next item to select
         long next;
         if (backward) {
             next = first - 1;
@@ -646,7 +783,11 @@ class FileListCtrl : public wxListCtrl {
             next = GetItemCount() - 1;
         }
 
-        selectSingle(next);
+        // Select and ensure visibility
+        selectSingle(next, true);
+        
+        // Update status bar
+        updateStatusBar();
     }
 
     Config m_cfg;
@@ -672,12 +813,14 @@ class FileListCtrl : public wxListCtrl {
 
 class MainFrame : public wxFrame {
  public:
-    explicit MainFrame(const Config& cfg)
+    explicit MainFrame(const Config& cfg, const std::optional<fs::path>& open_dir = std::nullopt)
         : wxFrame(nullptr, wxID_ANY, "filetoggler", wxDefaultPosition, wxSize(1000, 700)),
             m_cfg(cfg) {
         m_splitter = new wxSplitterWindow(this, wxID_ANY);
 
-        m_dirCtrl = new wxGenericDirCtrl(m_splitter, wxID_ANY, fs::current_path().string(),
+        fs::path start_dir = open_dir.value_or(fs::current_path());
+
+        m_dirCtrl = new wxGenericDirCtrl(m_splitter, wxID_ANY, start_dir.string(),
                                          wxDefaultPosition, wxDefaultSize, wxDIRCTRL_DIR_ONLY);
 
         m_rightPanel = new wxPanel(m_splitter, wxID_ANY);
@@ -697,9 +840,9 @@ class MainFrame : public wxFrame {
         top->Add(m_btnCompact, 0, wxALL, 4);
 
         m_list = new FileListCtrl(m_rightPanel, m_cfg, this);
-        m_list->setDir(fs::current_path());
+        m_list->setDir(start_dir);
         
-        m_dirHistory.push_back(fs::current_path());
+        m_dirHistory.push_back(start_dir);
         m_dirHistoryIndex = 0;
 
         vbox->Add(top, 0, wxEXPAND);
@@ -718,6 +861,7 @@ class MainFrame : public wxFrame {
 
         Bind(wxEVT_DIRCTRL_SELECTIONCHANGED, &MainFrame::OnDirChanged, this);
         Bind(wxEVT_CHAR_HOOK, &MainFrame::OnCharHook, this);
+        Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
 
         m_btnIcon->Bind(wxEVT_TOGGLEBUTTON, &MainFrame::OnViewModeToggle, this);
         m_btnList->Bind(wxEVT_TOGGLEBUTTON, &MainFrame::OnViewModeToggle, this);
@@ -849,6 +993,16 @@ class MainFrame : public wxFrame {
     
     void OnExit(wxCommandEvent&) {
         Close(true);
+    }
+    
+    void OnClose(wxCloseEvent& evt) {
+        // Stop timers before closing
+        if (m_list) {
+            m_list->StopTimers();
+        }
+        
+        // Let the default handler destroy the window
+        evt.Skip();
     }
     
     void OnEnable(wxCommandEvent&) {
@@ -1160,7 +1314,7 @@ class MainFrame : public wxFrame {
     }
     
     void OnAbout(wxCommandEvent&) {
-        wxMessageBox("filetoggler v1.0\n\nA dual-mode file toggler for quickly enabling/disabling files.",
+        wxMessageBox(wxString::Format("filetoggler v%s\n\nA dual-mode file toggler for quickly enabling/disabling files.", FILETOGGLER_VERSION),
                      "About filetoggler", wxOK | wxICON_INFORMATION, this);
     }
     
@@ -1324,10 +1478,14 @@ void FileListCtrl::updateStatusBar() {
 
 class App : public wxApp {
  public:
-    explicit App(const Config& cfg, const std::vector<std::string>& files) : m_cfg(cfg), m_files(files) {}
+    explicit App(const Config& cfg, const std::vector<std::string>& files, const std::optional<fs::path>& open_dir = std::nullopt)
+        : m_cfg(cfg), m_files(files), m_open_dir(open_dir) {}
 
     bool OnInit() override {
-        auto* f = new MainFrame(m_cfg);
+        // Exit when main frame is closed
+        SetExitOnFrameDelete(true);
+        
+        auto* f = new MainFrame(m_cfg, m_open_dir);
         f->Show(true);
 
         const auto invalid = findInvalidFilesForGui(m_files, m_cfg);
@@ -1341,20 +1499,24 @@ class App : public wxApp {
 
         return true;
     }
+    
+    int OnExit() override {
+        return 0;
+    }
 
  private:
     Config m_cfg;
     std::vector<std::string> m_files;
+    std::optional<fs::path> m_open_dir;
 };
 
-int run_gui(const Config& cfg, const std::vector<std::string>& files) {
-    wxApp::SetInstance(new App(cfg, files));
+int run_gui(const Config& cfg, const std::vector<std::string>& files, const std::optional<fs::path>& open_dir) {
+    wxApp::SetInstance(new App(cfg, files, open_dir));
     int argc = 0;
     char** argv = nullptr;
     wxEntryStart(argc, argv);
     wxTheApp->CallOnInit();
     wxTheApp->OnRun();
-    wxTheApp->OnExit();
     wxEntryCleanup();
     return 0;
 }

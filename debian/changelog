@@ -1,3 +1,18 @@
+filetoggler (1.0.1) testing; urgency=medium
+
+    Enhance CLI argument parsing, fixed scrolling issues.
+    
+    Major changes:
+    - Migrate CLI argument parsing from manual string_view parsing to getopt_long for better POSIX compliance
+    - Add new -o/--open option to specify directory to open in GUI mode
+    - Improve file list control with real-time state updates after enable/disable operations
+    - Fix list control selection behavior with proper focus and visibility handling
+    - Add proper timer cleanup on window close to prevent resource leaks
+    
+    The CLI refactoring provides better error messages, standardized option handling, and prepares for future option additions. The GUI improvements enhance user experience with smoother file state transitions and proper resource cleanup. 
+
+ -- Lenik (谢继雷) <lenik@bodz.net>  Wed, 01 Apr 2026 19:48:22 +0800
+
 filetoggler (1.0.0) testing; urgency=medium
 
   * Initial release

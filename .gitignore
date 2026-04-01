@@ -1,20 +1,44 @@
+# Build artifacts
+/.cache/
+/build/
+/demo
 builddir/
-build/
 *.o
 *.a
 *.so
 *.so.*
-*.exe
+
+# Editor files
+*.swp
+*.swo
 *~
-.*.swp
-.*.swo
-.DS_Store
-*.pyc
-__pycache__/
-.cache/
 .vscode/
 .idea/
-*.log
-.disable.d/
-.disabled.d/
-/demo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*~
+
+# Debian build files
+*.deb
+*.build
+*.changes
+*.dsc
+*.tar.gz
+*.tar.xz
+debian/files
+debian/*.substvars
+debian/*-stamp
+debian/.debhelper
+debian/*.debhelper.log
+debian/.debhelper/
+debian/filetoggler/
+
+# Meson files
+meson-private/
+meson-info/
+meson-logs/

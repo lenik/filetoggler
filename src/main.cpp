@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
     void* ctx = start_dbg_thread();
 
-    int status = ft::run_gui(args.cfg, args.files);
+    int status = ft::run_gui(args.cfg, args.files, args.open_dir);
 
     stop_dbg_thread(ctx);
     

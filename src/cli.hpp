@@ -2,8 +2,12 @@
 
 #include "core.hpp"
 
+#include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
+
+namespace fs = std::filesystem;
 
 namespace ft {
 
@@ -32,6 +36,8 @@ struct ParsedArgs {
     bool completion_mode{false};
     int completion_cword{-1};
     std::vector<std::string> completion_words;
+
+    std::optional<fs::path> open_dir;
 };
 
 bool parse_args(int argc, char** argv, ParsedArgs* out, std::string* err);
